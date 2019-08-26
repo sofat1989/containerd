@@ -76,14 +76,6 @@ var densityCommand = cli.Command{
 		s := make(chan os.Signal, 1)
 		signal.Notify(s, syscall.SIGTERM, syscall.SIGINT)
 
-		spec, err := oci.GenerateSpec(ctx, client,
-			&containers.Container{},
-			oci.WithImageConfig(image),
-			oci.WithProcessArgs("sleep", "120m"),
-		)
-		if err != nil {
-			return err
-		}
 		var (
 			pids  []uint32
 			count = cliContext.Int("count")
@@ -95,8 +87,16 @@ var densityCommand = cli.Command{
 				break loop
 			default:
 				id := fmt.Sprintf("density-%d", i)
+				spec, err := oci.GenerateSpec(ctx, client,
+					&containers.Container{},
+					oci.WithRootFSPath(filepath.Join("/run/containerd/io.containerd.runtime.v1.linux/density", id, "rootfs")),
+					oci.WithImageConfig(image),
+					oci.WithProcessArgs("sleep", "120m"),
+				)
+				if err != nil {
+					return err
+				}
 				spec.Linux.CgroupsPath = filepath.Join("/", "density", id)
-
 				c, err := client.NewContainer(ctx, id,
 					containerd.WithNewSnapshot(id, image),
 					containerd.WithSpec(spec, oci.WithUsername("games")),
